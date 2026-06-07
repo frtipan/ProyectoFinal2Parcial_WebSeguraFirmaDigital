@@ -18,7 +18,9 @@ jobs:
         run: pip install -r backend/requirements.txt
 
       - name: Ejecutar pruebas automáticas
-        run: pytest backend/tests
+        run: |
+          export PYTHONPATH=$PYTHONPATH:./backend
+          pytest backend/tests
 
       - name: Escaneo de seguridad con Bandit
         run: bandit -r backend/
