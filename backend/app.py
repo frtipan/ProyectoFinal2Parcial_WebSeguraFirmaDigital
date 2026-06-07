@@ -1,13 +1,19 @@
+import os
 from flask import Flask
+from dotenv import load_dotenv
 from config import db, SQLALCHEMY_DATABASE_URI
 from routes.usuarios import usuarios_bp
 from routes.documentos import documentos_bp
 from routes.certificados import certificados_bp
 from routes.auth import auth_bp
 
+load_dotenv()
+
 app = Flask(__name__)
+
+# ✅ Usar variables de entorno en vez de hardcodear
 app.config['SQLALCHEMY_DATABASE_URI'] = SQLALCHEMY_DATABASE_URI
-app.config['SECRET_KEY'] = 'clave-secreta-super-segura'
+app.config['SECRET_KEY'] = os.getenv("SECRET_KEY", "default-secret")
 
 db.init_app(app)
 
@@ -20,4 +26,5 @@ app.register_blueprint(auth_bp, url_prefix="/auth")
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()
-    app.run(debug=True, host="0.0.0.0", port=5000)
+    # ❌ No usar debug=True ni host=0.0.0.0 en producción
+    app.run(host="127.0.0.1", port=5000)

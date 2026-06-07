@@ -22,6 +22,23 @@ Tablas dentro del schemas.sql copiar y crear las tablas en pgAdmin
 
 Editar config.py con tu usuario y contraseña de PostgreSQL.
 
+🔐 Configuración de variables de entorno
+
+El proyecto usa un archivo .env para manejar credenciales y claves de forma segura.
+
+Ejemplo de .env (NO subir a GitHub):
+
+Código
+SECRET_KEY=mi-clave-super-segura-2026-!@#$
+DB_USER=postgres
+DB_PASS=tu-password-segura
+DB_HOST=localhost
+DB_NAME=firma_digital
+👉 Genera un SECRET_KEY seguro con:
+
+bash
+python -c "import secrets; print(secrets.token_hex(32))"
+
 🚀 Ejecución
 1. Arrancar backend
 bash
