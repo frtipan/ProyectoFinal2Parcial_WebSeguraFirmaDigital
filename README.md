@@ -1,18 +1,5 @@
 # Proyecto Final - Plataforma Web Segura de Firma Digital
 
-## 📌 Descripción
-
-Este proyecto implementa un sistema web seguro de firma digital con:
-- Autenticación segura con contraseñas hasheadas (SHA-256) y JWT.
-- CRUD completo de usuarios, documentos y certificados.
-- Criptografía AES y RSA.
-- Firma digital y verificación.
-- Certificados digitales simulados.
-- Auditoría de acciones en base de datos.
-- Pipeline DevSecOps con pruebas y escaneo de seguridad.
-
----
-
 ## ⚙️ Instalación
 
 ### 1. Clonar repositorio
