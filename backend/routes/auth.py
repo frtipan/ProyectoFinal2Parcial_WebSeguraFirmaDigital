@@ -1,13 +1,19 @@
+import os
 from flask import Blueprint, request, jsonify
 from models import Usuario
 from crypto.hash_utils import verify_password
 import jwt
 from datetime import datetime, timedelta
 from config import db
+from dotenv import load_dotenv
+
+# ✅ Cargar variables de entorno desde .env
+load_dotenv()
 
 auth_bp = Blueprint("auth", __name__)
 
-SECRET_KEY = "clave-secreta-super-segura"
+# ✅ Usar SECRET_KEY desde entorno, no hardcodeado
+SECRET_KEY = os.getenv("SECRET_KEY", "default-secret")
 
 @auth_bp.route("/login", methods=["POST"])
 def login():
