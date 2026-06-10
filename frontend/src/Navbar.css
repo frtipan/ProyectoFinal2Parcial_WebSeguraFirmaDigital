@@ -1,0 +1,45 @@
+.navbar {
+  display: flex;
+  justify-content: flex-end; /* 👉 acciones a la derecha */
+  align-items: center;
+  background: linear-gradient(135deg, #4b0082, #6a0dad);
+  padding: 12px 20px;
+  color: #fff;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+  position: relative; /* necesario para centrar el título */
+}
+
+.navbar-title {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 20px;
+  font-weight: 700;
+  font-family: "Segoe UI", Arial, sans-serif;
+  letter-spacing: 1px;
+  color: #fff;
+}
+
+.navbar-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.logout-btn {
+  padding: 8px 16px;
+  background: #ff4d4d;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  font-family: "Segoe UI", Arial, sans-serif;
+}
+
+.logout-btn:hover {
+  background: #e60000;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
