@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import API from "./api";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import "./Register.css";
 
 function Register() {
@@ -10,33 +10,50 @@ function Register() {
   const navigate = useNavigate();
 
   const handleRegister = async () => {
+    if (!nombre || !email || !password) {
+      alert("Por favor completa todos los campos");
+      return;
+    }
+
     try {
       await API.post("/usuarios/", { nombre, email, password });
       alert("✅ Usuario registrado correctamente");
-      navigate("/login"); // 👉 después de registrar, vuelve al login
+      navigate("/login");
     } catch (err) {
+      console.error(err.response?.data || err.message);
       alert("❌ Error en registro");
     }
   };
 
   return (
     <div className="register-container">
-      <h2>Registro</h2>
-      <input placeholder="Nombre" onChange={(e) => setNombre(e.target.value)} />
-      <input type="email" placeholder="Email" onChange={(e) => setEmail(e.target.value)} />
-      <input type="password" placeholder="Contraseña" onChange={(e) => setPassword(e.target.value)} />
-      
-      {/* Botón principal de registro */}
-      <button onClick={handleRegister}>Registrar</button>
+      <h1 className="app-title">Firma Digital</h1>
+      <div className="register-box">
+        <h2>Registro</h2>
+        <input
+          placeholder="Nombre"
+          value={nombre}
+          onChange={(e) => setNombre(e.target.value)}
+        />
+        <input
+          type="email"
+          placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
+        <input
+          type="password"
+          placeholder="Contraseña"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
 
-      {/* Botón secundario para volver al login */}
-      <button 
-        className="secondary-btn" 
-        onClick={() => navigate("/login")}
-        style={{ marginTop: "10px" }}
-      >
-        Volver al inicio de sesión
-      </button>
+        <button onClick={handleRegister}>Registrar</button>
+
+        <Link to="/login">
+          <button className="secondary-btn">Volver al inicio de sesión</button>
+        </Link>
+      </div>
     </div>
   );
 }

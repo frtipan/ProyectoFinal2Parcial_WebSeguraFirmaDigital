@@ -1,7 +1,7 @@
 import os
 from flask import Flask
 from dotenv import load_dotenv
-from extensions import db, bcrypt, jwt   # ✅ importar extensiones centralizadas
+from extensions import db, bcrypt, jwt   # ✅ extensiones centralizadas
 from config import SQLALCHEMY_DATABASE_URI
 from flask_migrate import Migrate
 from flask_cors import CORS
@@ -20,7 +20,7 @@ app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = SQLALCHEMY_DATABASE_URI
 app.config['SECRET_KEY'] = os.getenv("SECRET_KEY", "default-secret")
 
-# 🔑 Configuración JWT (necesaria para flask_jwt_extended)
+# 🔑 Configuración JWT
 app.config['JWT_SECRET_KEY'] = app.config['SECRET_KEY']
 
 # ✅ Inicializar extensiones
@@ -32,7 +32,7 @@ migrate = Migrate(app, db)
 # ✅ Configurar CORS
 CORS(
     app,
-    resources={r"/api/*": {"origins": ["http://localhost:3000", "http://127.0.0.1:3000"]}},
+    resources={r"/api/*": {"origins": ["http://localhost:3000"]}},
     supports_credentials=True,
     allow_headers=["Content-Type", "Authorization"],
     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"]

@@ -16,19 +16,37 @@ SECRET_KEY = os.getenv("SECRET_KEY", "default-secret")
 
 @auth_bp.route("/login", methods=["POST"])
 def login():
-    data = request.json
-    if not data or "email" not in data or "password" not in data:
-        return jsonify({"mensaje": "Faltan credenciales"}), 400
+    try:
+        data = request.json
+        if not data or "email" not in data or "password" not in data:
+            return jsonify({"mensaje": "Faltan credenciales"}), 400
 
-    usuario = Usuario.query.filter_by(email=data["email"]).first()
+        usuario = Usuario.query.filter_by(email=data["email"]).first()
 
-    if usuario and bcrypt.check_password_hash(usuario.password_hash, data["password"]):
-        # 🔒 Crear token JWT válido por 1 hora
-        token = create_access_token(
-            identity=usuario.id,
-            expires_delta=timedelta(hours=1)
-        )
-        return jsonify({"mensaje": "Login correcto", "token": token}), 200
+        if usuario and bcrypt.check_password_hash(usuario.password_hash, data["password"]):
+            # 🔒 Normalizar rol a minúsculas con fallback seguro
+            rol = (usuario.rol or "usuario").lower().strip()
 
-    # ❌ Si no coincide usuario o contraseña
-    return jsonify({"mensaje": "Credenciales inválidas"}), 401
+            # Crear token JWT válido por 1 hora con rol incluido
+            token = create_access_token(
+                identity={"id": usuario.id, "rol": rol},
+                expires_delta=timedelta(hours=1)
+            )
+
+            return jsonify({
+                "mensaje": "Login correcto",
+                "token": token,
+                "rol": rol,  # ✅ siempre minúsculas
+                "usuario": {
+                    "id": usuario.id,
+                    "nombre": usuario.nombre,
+                    "email": usuario.email
+                }
+            }), 200
+
+        # ❌ Si no coincide usuario o contraseña
+        return jsonify({"mensaje": "Credenciales inválidas"}), 401
+
+    except Exception as e:
+        # ✅ Captura de errores inesperados para evitar 500 sin explicación
+        return jsonify({"mensaje": "Error interno en el servidor", "error": str(e)}), 500

@@ -1,5 +1,5 @@
-from flask import Blueprint, request, jsonify
-from config import db
+from flask import Blueprint, request, jsonify, send_file
+from extensions import db
 from models import Certificado
 from datetime import datetime, timedelta
 from cryptography import x509
@@ -7,36 +7,27 @@ from cryptography.x509.oid import NameOID
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives.serialization import pkcs12
+import io
 
 certificados_bp = Blueprint("certificados", __name__)
 
-# 📌 Generar certificado X.509 auto-firmado dinámico
+# 📌 Emitir certificado auto-firmado y devolver archivo .p12
 @certificados_bp.route("/", methods=["POST"])
-def generar_certificado():
+def emitir_certificado():
     data = request.json
-    if not data or "usuario_id" not in data:
-        return jsonify({"error": "Debe enviar usuario_id"}), 400
+    if not data or "usuario_id" not in data or "password" not in data:
+        return jsonify({"error": "Debe enviar usuario_id y password"}), 400
 
-    # 🔑 Datos dinámicos con valores por defecto
-    country = data.get("country", "EC")
-    state = data.get("state", "Pichincha")
-    locality = data.get("locality", "Quito")
-    organization = data.get("organization", "MiOrganizacion")
-    common_name = data.get("common_name", "Usuario")
+    # Generar clave privada
+    private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
 
-    # Generar clave privada RSA
-    private_key = rsa.generate_private_key(
-        public_exponent=65537,
-        key_size=2048
-    )
-
-    # Definir sujeto y emisor (auto-firmado)
+    # Definir sujeto y emisor
     subject = issuer = x509.Name([
-        x509.NameAttribute(NameOID.COUNTRY_NAME, country),
-        x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, state),
-        x509.NameAttribute(NameOID.LOCALITY_NAME, locality),
-        x509.NameAttribute(NameOID.ORGANIZATION_NAME, organization),
-        x509.NameAttribute(NameOID.COMMON_NAME, common_name),
+        x509.NameAttribute(NameOID.COUNTRY_NAME, data.get("country", "EC")),
+        x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, data.get("state", "Pichincha")),
+        x509.NameAttribute(NameOID.LOCALITY_NAME, data.get("locality", "Quito")),
+        x509.NameAttribute(NameOID.ORGANIZATION_NAME, data.get("organization", "MiOrganizacion")),
+        x509.NameAttribute(NameOID.COMMON_NAME, data.get("common_name", "Usuario")),
     ])
 
     # Crear certificado válido por 1 año
@@ -51,22 +42,31 @@ def generar_certificado():
         .sign(private_key, hashes.SHA256())
     )
 
-    # Exportar certificado a PEM
-    cert_pem = cert.public_bytes(serialization.Encoding.PEM).decode()
+    # Exportar a formato PKCS12 (.p12) con contraseña
+    p12_data = pkcs12.serialize_key_and_certificates(
+        name=b"certificado",
+        key=private_key,
+        cert=cert,
+        cas=None,
+        encryption_algorithm=serialization.BestAvailableEncryption(data["password"].encode())
+    )
 
-    # Guardar en BD
+    # Guardar metadata en BD
     nuevo_cert = Certificado(
         usuario_id=data["usuario_id"],
-        certificado=cert_pem,
+        certificado=cert.public_bytes(serialization.Encoding.PEM).decode(),
         valido=True
     )
     db.session.add(nuevo_cert)
     db.session.commit()
 
-    return jsonify({
-        "mensaje": "Certificado generado",
-        "certificado": cert_pem
-    }), 201
+    # Devolver archivo descargable
+    return send_file(
+        io.BytesIO(p12_data),
+        mimetype="application/x-pkcs12",
+        as_attachment=True,
+        download_name=f"cert_usuario_{data['usuario_id']}.p12"
+    )
 
 # 📌 Listar certificados
 @certificados_bp.route("/", methods=["GET"])
@@ -74,49 +74,32 @@ def listar_certificados():
     certs = Certificado.query.all()
     resultado = []
     for c in certs:
+        expira = None
         try:
             cert_obj = x509.load_pem_x509_certificate(c.certificado.encode())
             expira = cert_obj.not_valid_after.isoformat()
         except Exception:
-            expira = None
+            pass
         resultado.append({
             "id": c.id,
             "usuario_id": c.usuario_id,
-            "certificado": c.certificado,
             "valido": c.valido,
             "expira": expira
         })
     return jsonify(resultado)
 
-# 📌 Validar certificado (.p12)
-@certificados_bp.route("/validar", methods=["POST", "OPTIONS"])
-def validar_certificado():
-    if request.method == "OPTIONS":
-        return jsonify({"mensaje": "Preflight OK"}), 200
+# 📌 Revocar certificado
+@certificados_bp.route("/<int:id>/revocar", methods=["PUT"])
+def revocar_certificado(id):
+    cert = Certificado.query.get_or_404(id)
+    cert.valido = False
+    db.session.commit()
+    return jsonify({"mensaje": "Certificado revocado", "id": cert.id})
 
-    cert_file = request.files.get("certificado")
-    password = request.form.get("password")
-
-    if not cert_file or not password:
-        return jsonify({"error": "Falta certificado o contraseña"}), 400
-
-    try:
-        p12_data = cert_file.read()
-        private_key, certificate, _ = pkcs12.load_key_and_certificates(
-            p12_data, password.encode()
-        )
-
-        # ✅ Verificar expiración
-        if certificate.not_valid_after < datetime.utcnow():
-            return jsonify({
-                "detalle": "❌ Certificado expirado",
-                "expira": certificate.not_valid_after.isoformat()
-            }), 400
-
-        return jsonify({
-            "detalle": "✅ Certificado válido",
-            "expira": certificate.not_valid_after.isoformat()
-        }), 200
-
-    except Exception as e:
-        return jsonify({"error": f"❌ Certificado inválido: {str(e)}"}), 400
+# 📌 Eliminar certificado
+@certificados_bp.route("/<int:id>", methods=["DELETE"])
+def eliminar_certificado(id):
+    cert = Certificado.query.get_or_404(id)
+    db.session.delete(cert)
+    db.session.commit()
+    return jsonify({"mensaje": "Certificado eliminado", "id": id})
